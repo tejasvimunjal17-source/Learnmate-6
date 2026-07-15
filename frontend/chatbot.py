@@ -20,7 +20,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from config import ORCHESTRATE_CONFIG
-from backend.watsonx_client import watsonx_client
 
 SUGGESTED_QUESTIONS = [
     "What should I focus on this week?",
@@ -129,22 +128,10 @@ def _render_demo_chatbot() -> None:
         st.markdown(f"**Mentor:** {a}")
 
     user_q = st.text_input("Type a question...", key="chat_input")
-
-if st.button("Send", key="chat_send_btn") and user_q.strip():
-    try:
-        reply = watsonx_client.generate_text(
-            prompt=user_q,
-            system_prompt=(
-                "You are LearnMate AI Career Mentor. "
-                "Help students with career guidance, roadmaps, skill gaps, "
-                "certifications, projects and interview preparation."
-            ),
-        )
-    except Exception:
+    if st.button("Send", key="chat_send_btn") and user_q.strip():
         reply = _rule_based_reply(user_q)
-
-    st.session_state["chat_history"].append((user_q, reply))
-    st.rerun()
+        st.session_state["chat_history"].append((user_q, reply))
+        st.rerun()
 
 
 def render_chatbot_widget() -> None:
