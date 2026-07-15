@@ -272,11 +272,9 @@ def render_roadmap_page() -> None:
     )
 
     if roadmap.get("_source", "").startswith("offline"):
-        st.warning(
-            "🧭 Your roadmap has been generated successfully "
-            f"({roadmap.get('_fallback_reason', 'not configured')}). "
-            "Configure your `.env` for fully AI-personalized roadmaps."
-        )
+        st.markdown(
+            "### 🧭 Your roadmap has been generated successfully "
+            
 
     glass_card_open("📋 Overview")
     st.write(roadmap.get("summary", ""))
