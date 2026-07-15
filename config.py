@@ -88,7 +88,7 @@ class GoogleSheetsConfig:
 
 @dataclass(frozen=True)
 class OrchestrateConfig:
-     """Configuration for the IBM watsonx Orchestrate AI Mentor chat widget."""
+    """Configuration for the IBM watsonx Orchestrate AI Mentor chat widget."""
 
     orchestration_id: str
     host_url: str
@@ -96,9 +96,9 @@ class OrchestrateConfig:
     crn: str
     agent_id: str
     agent_environment_id: str
-    
+
     @property
-    def is_configured(self):
+    def is_configured(self) -> bool:
         return bool(
             self.orchestration_id
             and self.host_url
@@ -135,16 +135,16 @@ def load_sheets_config() -> GoogleSheetsConfig:
 def load_orchestrate_config() -> OrchestrateConfig:
     """Load and return the IBM watsonx Orchestrate chat-widget configuration."""
     return OrchestrateConfig(
-    orchestration_id=_get_env("WATSONX_ORCHESTRATION_ID"),
-    host_url=_get_env("WATSONX_HOST_URL"),
-    deployment_platform=_get_env(
-        "WATSONX_DEPLOYMENT_PLATFORM",
-        default="ibmcloud"
-    ),
-    crn=_get_env("WATSONX_CRN"),
-    agent_id=_get_env("WATSONX_AGENT_ID"),
-    agent_environment_id=_get_env("WATSONX_AGENT_ENVIRONMENT_ID"),
-)
+        orchestration_id=_get_env("WATSONX_ORCHESTRATION_ID"),
+        host_url=_get_env("WATSONX_HOST_URL"),
+        deployment_platform=_get_env(
+            "WATSONX_DEPLOYMENT_PLATFORM",
+            default="ibmcloud",
+        ),
+        crn=_get_env("WATSONX_CRN"),
+        agent_id=_get_env("WATSONX_AGENT_ID"),
+        agent_environment_id=_get_env("WATSONX_AGENT_ENVIRONMENT_ID"),
+    )
 
 
 # Singleton-style config instances used across the app
