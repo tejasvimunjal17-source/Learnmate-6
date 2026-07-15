@@ -89,12 +89,47 @@ def render_chatbot_widget() -> None:
             st.markdown("#### 🧭 AI Career Mentor")
 
             if ORCHESTRATE_CONFIG.is_configured:
-                st.caption("🟢 Connected to IBM watsonx Orchestrate")
-                st.markdown(
-                    f'<iframe src="{ORCHESTRATE_CONFIG.embed_url}" '
-                    'style="width:100%;height:360px;border:none;border-radius:12px;"></iframe>',
-                    unsafe_allow_html=True,
-                )
+    st.caption("🟢 Connected to IBM watsonx Orchestrate")
+
+    components.html(
+        f"""
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+
+<div id="root"></div>
+
+<script>
+window.wxOConfiguration = {{
+    orchestrationID: "{ORCHESTRATE_CONFIG.orchestration_id}",
+    hostURL: "{ORCHESTRATE_CONFIG.host_url}",
+    rootElementID: "root",
+    deploymentPlatform: "{ORCHESTRATE_CONFIG.deployment_platform}",
+    crn: "{ORCHESTRATE_CONFIG.crn}",
+    chatOptions: {{
+        agentId: "{ORCHESTRATE_CONFIG.agent_id}",
+        agentEnvironmentId: "{ORCHESTRATE_CONFIG.agent_environment_id}"
+    }}
+}};
+
+const script = document.createElement("script");
+script.src = window.wxOConfiguration.hostURL + "/wxochat/wxoLoader.js?embed=true";
+
+script.onload = function () {{
+    wxoLoader.init();
+}};
+
+document.head.appendChild(script);
+
+</script>
+
+</body>
+</html>
+""",
+        height=650,
+        scrolling=False,
+    )
             else:
                 st.caption("🟡 Demo mentor — connect watsonx Orchestrate for full conversations")
                 if not st.session_state["chat_history"]:
