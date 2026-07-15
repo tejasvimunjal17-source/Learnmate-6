@@ -105,6 +105,18 @@ def generate_roadmap(profile: StudentProfile) -> dict[str, Any]:
         roadmap["_source"] = "offline fallback (watsonx.ai unavailable)"
         roadmap["_fallback_reason"] = str(exc)
         return roadmap
+    except Exception as exc:  # noqa: BLE001 - last-resort safety net
+        # Anything unexpected (network layer edge cases, malformed
+        # responses, etc.) must still degrade gracefully rather than
+        # crash the UI - requirement is "never crash, always fall back."
+        logger.exception(
+            "Unexpected error generating roadmap via watsonx.ai for '%s'; "
+            "falling back to offline roadmap.", profile.name,
+        )
+        roadmap = _offline_fallback_roadmap(profile)
+        roadmap["_source"] = "offline fallback (watsonx.ai unavailable)"
+        roadmap["_fallback_reason"] = f"Unexpected error: {exc}"
+        return roadmap
 
 
 def _duration_for_level(level: str) -> int:
