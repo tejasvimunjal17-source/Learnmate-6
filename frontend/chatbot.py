@@ -11,7 +11,7 @@ Orchestrate agent via iframe. Until that's configured, it falls back to a
 lightweight rule-based responder grounded in the student's own roadmap data
 so the widget is fully functional out of the box.
 """
-
+import streamlit.components.v1 as components
 from __future__ import annotations
 
 import streamlit as st
