@@ -5,16 +5,19 @@ Floating "AI Mentor" chat assistant, rendered in the bottom-right corner on
 every page (minimize/maximize, welcome message, suggested questions, chat
 history, responsive).
 
-This widget reserves the integration point for **IBM watsonx Orchestrate**:
-if WATSONX_ORCHESTRATE_EMBED_URL is set, the panel embeds the real
-Orchestrate agent via iframe. Until that's configured, it falls back to a
-lightweight rule-based responder grounded in the student's own roadmap data
-so the widget is fully functional out of the box.
+This widget integrates the official **IBM watsonx Orchestrate** embedded
+chat widget when ORCHESTRATE_CONFIG.is_configured is True, loaded via
+streamlit.components.v1.html(). Until Orchestrate is configured, it falls
+back to a lightweight rule-based responder grounded in the student's own
+roadmap data so the widget is fully functional out of the box.
 """
 
 from __future__ import annotations
 
+import json
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 from config import ORCHESTRATE_CONFIG
 
@@ -71,6 +74,66 @@ def _rule_based_reply(question: str) -> str:
     )
 
 
+def _render_orchestrate_widget() -> None:
+    """Embed the official IBM watsonx Orchestrate chat widget via a script
+    loader, using the exact wxOConfiguration contract IBM's loader expects."""
+    wx_o_configuration = {
+        "orchestrationID": ORCHESTRATE_CONFIG.orchestration_id,
+        "hostURL": ORCHESTRATE_CONFIG.host_url,
+        "rootElementID": "root",
+        "deploymentPlatform": ORCHESTRATE_CONFIG.deployment_platform,
+        "crn": ORCHESTRATE_CONFIG.crn,
+        "chatOptions": {
+            "agentId": ORCHESTRATE_CONFIG.agent_id,
+            "agentEnvironmentId": ORCHESTRATE_CONFIG.agent_environment_id,
+        },
+    }
+    wx_o_configuration_json = json.dumps(wx_o_configuration)
+    host_url = ORCHESTRATE_CONFIG.host_url.rstrip("/")
+
+    html = f"""
+    <div id="root"></div>
+    <script>
+        window.wxOConfiguration = {wx_o_configuration_json};
+
+        setTimeout(function () {{
+            const script = document.createElement("script");
+            script.src = "{host_url}/wxochat/wxoLoader.js?embed=true";
+            script.addEventListener("load", function () {{
+                if (window.wxoLoader) {{
+                    window.wxoLoader.init();
+                }}
+            }});
+            document.head.appendChild(script);
+        }}, 0);
+    </script>
+    """
+    components.html(html, height=420, scrolling=True)
+
+
+def _render_demo_chatbot() -> None:
+    """Rule-based fallback mentor used when Orchestrate isn't configured."""
+    if not st.session_state["chat_history"]:
+        st.info("👋 Hi! I'm your AI Career Mentor. Ask me anything about your roadmap.")
+
+    st.markdown("**Suggested questions:**")
+    for i, sq in enumerate(SUGGESTED_QUESTIONS):
+        if st.button(sq, key=f"suggest_q_{i}", use_container_width=True):
+            reply = _rule_based_reply(sq)
+            st.session_state["chat_history"].append((sq, reply))
+            st.rerun()
+
+    for q, a in st.session_state["chat_history"][-6:]:
+        st.markdown(f"**You:** {q}")
+        st.markdown(f"**Mentor:** {a}")
+
+    user_q = st.text_input("Type a question...", key="chat_input")
+    if st.button("Send", key="chat_send_btn") and user_q.strip():
+        reply = _rule_based_reply(user_q)
+        st.session_state["chat_history"].append((user_q, reply))
+        st.rerun()
+
+
 def render_chatbot_widget() -> None:
     st.session_state.setdefault("chatbot_open", False)
     st.session_state.setdefault("chat_history", [])
@@ -89,25 +152,8 @@ def render_chatbot_widget() -> None:
             st.markdown("#### 🧭 AI Career Mentor")
 
             if ORCHESTRATE_CONFIG.is_configured:
-    st.caption("🟢 Connected to IBM watsonx Orchestrate")
+                st.caption("🟢 Connected to IBM watsonx Orchestrate")
+                _render_orchestrate_widget()
             else:
                 st.caption("🟡 Demo mentor — connect watsonx Orchestrate for full conversations")
-                if not st.session_state["chat_history"]:
-                    st.info("👋 Hi! I'm your AI Career Mentor. Ask me anything about your roadmap.")
-
-                st.markdown("**Suggested questions:**")
-                for i, sq in enumerate(SUGGESTED_QUESTIONS):
-                    if st.button(sq, key=f"suggest_q_{i}", use_container_width=True):
-                        reply = _rule_based_reply(sq)
-                        st.session_state["chat_history"].append((sq, reply))
-                        st.rerun()
-
-                for q, a in st.session_state["chat_history"][-6:]:
-                    st.markdown(f"**You:** {q}")
-                    st.markdown(f"**Mentor:** {a}")
-
-                user_q = st.text_input("Type a question...", key="chat_input")
-                if st.button("Send", key="chat_send_btn") and user_q.strip():
-                    reply = _rule_based_reply(user_q)
-                    st.session_state["chat_history"].append((user_q, reply))
-                    st.rerun()
+                _render_demo_chatbot()
