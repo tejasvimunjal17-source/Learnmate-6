@@ -5,21 +5,14 @@ Floating "AI Mentor" chat assistant, rendered in the bottom-right corner on
 every page (minimize/maximize, welcome message, suggested questions, chat
 history, responsive).
 
-This widget integrates the official **IBM watsonx Orchestrate** embedded
-chat widget when ORCHESTRATE_CONFIG.is_configured is True, loaded via
-streamlit.components.v1.html(). Until Orchestrate is configured, it falls
-back to a lightweight rule-based responder grounded in the student's own
-roadmap data so the widget is fully functional out of the box.
+This is a fully local, rule-based mentor grounded in the student's own
+roadmap/profile session data. No external services, no components.html(),
+no iframes — everything renders with native Streamlit widgets.
 """
 
 from __future__ import annotations
 
-import json
-
 import streamlit as st
-import streamlit.components.v1 as components
-
-from config import ORCHESTRATE_CONFIG
 
 SUGGESTED_QUESTIONS = [
     "What should I focus on this week?",
@@ -29,90 +22,143 @@ SUGGESTED_QUESTIONS = [
 ]
 
 
+def _no_roadmap_message() -> str:
+    return (
+        "I don't see a roadmap yet — head to **AI Roadmap** and fill out your "
+        "profile first, then I can give you specific guidance!"
+    )
+
+
+def _reply_focus(roadmap: dict) -> str:
+    milestones = roadmap.get("weekly_milestones", [])
+    completed = st.session_state.get("completed_weeks", set())
+    next_week = next((m for m in milestones if m.get("week") not in completed), None)
+    if next_week:
+        return f"Right now, focus on **Week {next_week.get('week')}: {next_week.get('title')}**."
+    return "Looks like you've completed every milestone — great work! Consider a capstone project next."
+
+
+def _reply_skill_gap(roadmap: dict) -> str:
+    gaps = roadmap.get("skill_gap_analysis", [])
+    high = [g for g in gaps if g.get("priority") == "High"]
+    if high:
+        names = ", ".join(g.get("skill", "") for g in high[:3])
+        return f"Your highest-priority skill gaps are: **{names}**. Tackle those first."
+    return "No high-priority gaps detected — you're in good shape!"
+
+
+def _reply_certifications(profile) -> str:
+    return (
+        f"Check the **Courses & Certs** page for certifications curated for "
+        f"**{profile.preferred_domain}**, with official links."
+    )
+
+
+def _reply_hours(roadmap: dict, profile) -> str:
+    total_weeks = roadmap.get("estimated_duration_weeks", len(roadmap.get("weekly_milestones", [])))
+    hours = total_weeks * profile.study_hours_per_week
+    return (
+        f"At {profile.study_hours_per_week} hrs/week, your roadmap totals about "
+        f"**{hours} hours** over {total_weeks} weeks."
+    )
+
+
+def _reply_progress(roadmap: dict) -> str:
+    milestones = roadmap.get("weekly_milestones", [])
+    completed = st.session_state.get("completed_weeks", set())
+    total = len(milestones)
+    done = len(completed)
+    if total == 0:
+        return "I don't see any milestones logged yet — check your **AI Roadmap** page."
+    pct = round((done / total) * 100)
+    return f"You've completed **{done} of {total}** milestones (**{pct}%**). Keep the momentum going!"
+
+def _reply_milestone(roadmap: dict) -> str:
+    milestones = roadmap.get("weekly_milestones", [])
+    if not milestones:
+        return "I don't see any milestones on your roadmap yet."
+    completed = st.session_state.get("completed_weeks", set())
+    next_week = next((m for m in milestones if m.get("week") not in completed), None)
+    if next_week:
+        return (
+            f"Your next milestone is **Week {next_week.get('week')}: {next_week.get('title')}**. "
+            f"{next_week.get('description', '')}".strip()
+        )
+    return "All milestones are complete! Time to plan what comes after your roadmap."
+
+
+def _reply_projects(profile) -> str:
+    return (
+        f"For **{profile.preferred_domain}**, try building 2-3 small portfolio projects that "
+        "each demonstrate one skill from your gap list — a finished project beats a tutorial "
+        "every time. Check the **Courses & Certs** page for project-style learning resources."
+    )
+
+
+def _reply_interview(profile) -> str:
+    return (
+        f"For interview prep in **{profile.preferred_domain}**: review your skill gaps first "
+        "(those are the likely weak spots), practice explaining your projects out loud, and "
+        "do a few timed mock questions. Consistency beats cramming — a little each day."
+    )
+
+
+def _reply_motivation(profile) -> str:
+    return (
+        f"You're working toward **{profile.career_goal}** — that's a real goal, not a wish. "
+        "Progress on a roadmap is rarely a straight line, so don't judge today by how you feel; "
+        "judge it by whether you showed up. One milestone at a time gets you there."
+    )
+
+
+def _reply_greeting() -> str:
+    return (
+        "I'm your AI Career Mentor! Ask me about your weekly focus, skill gaps, "
+        "certifications, progress, remaining hours, project ideas, interview prep, "
+        "or just say hi if you need a motivation boost."
+    )
+
+
 def _rule_based_reply(question: str) -> str:
     q = question.lower()
     roadmap = st.session_state.get("roadmap")
     profile = st.session_state.get("profile")
 
     if not roadmap or not profile:
-        return (
-            "I don't see a roadmap yet — head to **AI Roadmap** and fill out your "
-            "profile first, then I can give you specific guidance!"
-        )
+        return _no_roadmap_message()
 
-    if "week" in q or "focus" in q:
-        milestones = roadmap.get("weekly_milestones", [])
-        completed = st.session_state.get("completed_weeks", set())
-        next_week = next((m for m in milestones if m.get("week") not in completed), None)
-        if next_week:
-            return f"Right now, focus on **Week {next_week.get('week')}: {next_week.get('title')}**."
-        return "Looks like you've completed every milestone — great work! Consider a capstone project next."
+    if "motivat" in q or "discourag" in q or "stuck" in q or "give up" in q:
+        return _reply_motivation(profile)
+
+    if "interview" in q:
+        return _reply_interview(profile)
+
+    if "project" in q and "roadmap" not in q:
+        return _reply_projects(profile)
+
+    if "milestone" in q:
+        return _reply_milestone(roadmap)
+
+    if "progress" in q or "how am i doing" in q or "how far" in q:
+        return _reply_progress(roadmap)
+
+    if "week" in q or "focus" in q or "study" in q:
+        return _reply_focus(roadmap)
 
     if "gap" in q or "skill" in q:
-        gaps = roadmap.get("skill_gap_analysis", [])
-        high = [g for g in gaps if g.get("priority") == "High"]
-        if high:
-            names = ", ".join(g.get("skill", "") for g in high[:3])
-            return f"Your highest-priority skill gaps are: **{names}**. Tackle those first."
-        return "No high-priority gaps detected — you're in good shape!"
+        return _reply_skill_gap(roadmap)
 
     if "cert" in q:
-        return (
-            f"Check the **Courses & Certs** page for certifications curated for "
-            f"**{profile.preferred_domain}**, with official links."
-        )
+        return _reply_certifications(profile)
 
-    if "hour" in q or "time" in q or "finish" in q:
-        total_weeks = roadmap.get("estimated_duration_weeks", len(roadmap.get("weekly_milestones", [])))
-        hours = total_weeks * profile.study_hours_per_week
-        return f"At {profile.study_hours_per_week} hrs/week, your roadmap totals about **{hours} hours** over {total_weeks} weeks."
+    if "hour" in q or "time" in q or "finish" in q or "remaining" in q:
+        return _reply_hours(roadmap, profile)
 
-    return (
-        "I'm your AI Career Mentor! Ask me about your weekly focus, skill gaps, "
-        "certifications, or timeline — or connect IBM watsonx Orchestrate for "
-        "fully open-ended conversations."
-    )
-
-
-def _render_orchestrate_widget() -> None:
-    """Embed the official IBM watsonx Orchestrate chat widget via a script
-    loader, using the exact wxOConfiguration contract IBM's loader expects."""
-    wx_o_configuration = {
-        "orchestrationID": ORCHESTRATE_CONFIG.orchestration_id,
-        "hostURL": ORCHESTRATE_CONFIG.host_url,
-        "rootElementID": "root",
-        "deploymentPlatform": ORCHESTRATE_CONFIG.deployment_platform,
-        "crn": ORCHESTRATE_CONFIG.crn,
-        "chatOptions": {
-            "agentId": ORCHESTRATE_CONFIG.agent_id,
-            "agentEnvironmentId": ORCHESTRATE_CONFIG.agent_environment_id,
-        },
-    }
-    wx_o_configuration_json = json.dumps(wx_o_configuration)
-    host_url = ORCHESTRATE_CONFIG.host_url.rstrip("/")
-
-    html = f"""
-    <div id="root"></div>
-    <script>
-        window.wxOConfiguration = {wx_o_configuration_json};
-
-        setTimeout(function () {{
-            const script = document.createElement("script");
-            script.src = "{host_url}/wxochat/wxoLoader.js?embed=true";
-            script.addEventListener("load", function () {{
-                if (window.wxoLoader) {{
-                    window.wxoLoader.init();
-                }}
-            }});
-            document.head.appendChild(script);
-        }}, 0);
-    </script>
-    """
-    components.html(html, height=420, scrolling=True)
+    return _reply_greeting()
 
 
 def _render_demo_chatbot() -> None:
-    """Rule-based fallback mentor used when Orchestrate isn't configured."""
+    """Rule-based mentor grounded in the student's own roadmap/profile data."""
     if not st.session_state["chat_history"]:
         st.info("👋 Hi! I'm your AI Career Mentor. Ask me anything about your roadmap.")
 
@@ -150,10 +196,5 @@ def render_chatbot_widget() -> None:
 
         if st.session_state["chatbot_open"]:
             st.markdown("#### 🧭 AI Career Mentor")
-
-            if ORCHESTRATE_CONFIG.is_configured:
-                st.caption("🟢 Connected to IBM watsonx Orchestrate")
-                _render_orchestrate_widget()
-            else:
-                st.caption("🟡 Demo mentor — connect watsonx Orchestrate for full conversations")
-                _render_demo_chatbot()
+            st.caption("🟡 Demo mentor — grounded in your own roadmap data")
+            _render_demo_chatbot()
