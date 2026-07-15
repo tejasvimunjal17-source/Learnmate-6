@@ -273,7 +273,7 @@ def render_roadmap_page() -> None:
 
     if roadmap.get("_source", "").startswith("offline"):
         st.markdown(
-            "### 🧭 Your roadmap has been generated successfully "
+            "### 🧭 Your roadmap has been generated successfully. ") 
             
 
     glass_card_open("📋 Overview")
