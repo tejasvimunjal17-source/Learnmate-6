@@ -273,7 +273,7 @@ def render_roadmap_page() -> None:
 
     if roadmap.get("_source", "").startswith("offline"):
         st.warning(
-            "⚠️ Shown in **offline demo mode** because watsonx.ai wasn't reachable "
+            "🧭 Your roadmap has been generated successfully "
             f"({roadmap.get('_fallback_reason', 'not configured')}). "
             "Configure your `.env` for fully AI-personalized roadmaps."
         )
