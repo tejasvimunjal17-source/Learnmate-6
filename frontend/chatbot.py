@@ -15,7 +15,6 @@ so the widget is fully functional out of the box.
 from __future__ import annotations
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from config import ORCHESTRATE_CONFIG
 
