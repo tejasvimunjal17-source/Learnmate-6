@@ -14,10 +14,7 @@ roadmap data so the widget is fully functional out of the box.
 
 from __future__ import annotations
 
-import json
-
 import streamlit as st
-import streamlit.components.v1 as components
 
 from config import ORCHESTRATE_CONFIG
 
@@ -74,41 +71,7 @@ def _rule_based_reply(question: str) -> str:
     )
 
 
-def _render_orchestrate_widget() -> None:
-    """Embed the official IBM watsonx Orchestrate chat widget via a script
-    loader, using the exact wxOConfiguration contract IBM's loader expects."""
-    wx_o_configuration = {
-        "orchestrationID": ORCHESTRATE_CONFIG.orchestration_id,
-        "hostURL": ORCHESTRATE_CONFIG.host_url,
-        "rootElementID": "root",
-        "deploymentPlatform": ORCHESTRATE_CONFIG.deployment_platform,
-        "crn": ORCHESTRATE_CONFIG.crn,
-        "chatOptions": {
-            "agentId": ORCHESTRATE_CONFIG.agent_id,
-            "agentEnvironmentId": ORCHESTRATE_CONFIG.agent_environment_id,
-        },
-    }
-    wx_o_configuration_json = json.dumps(wx_o_configuration)
-    host_url = ORCHESTRATE_CONFIG.host_url.rstrip("/")
 
-    html = f"""
-    <div id="root"></div>
-    <script>
-        window.wxOConfiguration = {wx_o_configuration_json};
-
-        setTimeout(function () {{
-            const script = document.createElement("script");
-            script.src = "{host_url}/wxochat/wxoLoader.js?embed=true";
-            script.addEventListener("load", function () {{
-                if (window.wxoLoader) {{
-                    window.wxoLoader.init();
-                }}
-            }});
-            document.head.appendChild(script);
-        }}, 0);
-    </script>
-    """
-    components.html(html, height=420, scrolling=True)
 
 
 def _render_demo_chatbot() -> None:
@@ -151,9 +114,6 @@ def render_chatbot_widget() -> None:
         if st.session_state["chatbot_open"]:
             st.markdown("#### 🧭 AI Career Mentor")
 
-            if ORCHESTRATE_CONFIG.is_configured:
-                st.caption("🟢 Connected to IBM watsonx Orchestrate")
-                _render_orchestrate_widget()
-            else:
-                st.caption("🟡 Demo mentor — connect watsonx Orchestrate for full conversations")
-                _render_demo_chatbot()
+            st.caption("🤖 AI Career Mentor")
+
+_render_demo_chatbot()
