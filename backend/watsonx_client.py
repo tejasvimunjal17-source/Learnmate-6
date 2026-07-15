@@ -88,8 +88,12 @@ class WatsonxClient:
                 "is valid and active."
             )
 
-        payload = resp.json()
-        token = payload["access_token"]
+        try:
+            payload = resp.json()
+            token = payload["access_token"]
+        except (ValueError, KeyError) as exc:
+            logger.error("Unexpected IAM token response shape: %s", resp.text[:300])
+            raise WatsonxAuthError("Unexpected response from IBM Cloud IAM.") from exc
         expires_in = payload.get("expires_in", 3600)
         self._cached_token = _CachedToken(token=token, expires_at=time.time() + expires_in)
         return token
@@ -144,16 +148,37 @@ class WatsonxClient:
             "Accept": "application/json",
         }
 
+        logger.info("watsonx.ai request -> %s (model_id=%s)", url, self.config.model_id)
+
         try:
             resp = requests.post(url, json=body, headers=headers, timeout=90)
         except requests.RequestException as exc:
             logger.error("watsonx.ai request failed: %s", exc)
-            raise
+            # Wrap so this always normalizes to WatsonxError - a raw
+            # requests exception here would otherwise escape the
+            # (WatsonxError, ValueError) catch in roadmap_engine.py and
+            # crash the UI instead of falling back to the offline roadmap.
+            raise WatsonxError(f"Could not reach watsonx.ai: {exc}") from exc
 
         if resp.status_code == 401:
             # Token might have just expired server-side - clear cache once
             self._cached_token = None
             raise WatsonxAuthError("watsonx.ai rejected the request (401 Unauthorized).")
+
+        if resp.status_code == 404:
+            logger.error(
+                "watsonx.ai 404 at %s | project_id=%s model_id=%s | body: %s",
+                url, self.config.project_id, self.config.model_id, resp.text[:500],
+            )
+            raise WatsonxError(
+                "watsonx.ai returned an error (404). This almost always means "
+                "either WATSONX_PROJECT_ID doesn't exist in the region your "
+                "WATSONX_URL points to, or the model isn't available there. "
+                "Check that the project's region matches WATSONX_URL "
+                "(e.g. us-south / eu-de / eu-gb / au-syd) and that "
+                "WATSONX_PROJECT_ID is the Project ID (not a space or "
+                "deployment ID)."
+            )
 
         if resp.status_code >= 400:
             logger.error("watsonx.ai error [%s]: %s", resp.status_code, resp.text[:500])
@@ -162,11 +187,11 @@ class WatsonxClient:
                 f"Check your Project ID, Model ID, and region URL."
             )
 
-        data = resp.json()
         try:
+            data = resp.json()
             return data["results"][0]["generated_text"].strip()
-        except (KeyError, IndexError) as exc:
-            logger.error("Unexpected watsonx.ai response shape: %s", data)
+        except (KeyError, IndexError, ValueError) as exc:
+            logger.error("Unexpected watsonx.ai response shape: %s", resp.text[:500])
             raise WatsonxError("Unexpected response format from watsonx.ai.") from exc
 
     def health_check(self) -> bool:
