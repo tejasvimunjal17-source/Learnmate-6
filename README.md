@@ -13,7 +13,7 @@ glassmorphism UI with user accounts backed by **Google Sheets**.
 
 ---
 
-It is built only on IBM Cloud using IBM watsonx.ai (llama models).
+It is built only on IBM Cloud using IBM watsonx.ai (granite models).
 
 
 
