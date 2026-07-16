@@ -1,5 +1,3 @@
-https://github.com/tejasvimunjal17-source/LearnMate-AI-Personalized-Career-Learning-Pathway-Generator/blob/main/LearnMate%20Al%20-%20Orchestrate%20Architecture%20Blueprint.png 
-
 # 🧭 LearnMate AI — Career Learning Platform
 
 An agentic, AI-powered career learning **SaaS platform** built with
