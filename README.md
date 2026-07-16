@@ -13,6 +13,14 @@ glassmorphism UI with user accounts backed by **Google Sheets**.
 
 ---
 
+It is built only on IBM Cloud using IBM watsonx.ai (llama models).
+
+
+
+Live At : https://learnmate-ai-personalized-career-learning-pathway-generator.streamlit.app/ 
+
+
+
 ## ✨ Features
 
 - **Premium Landing Page** — gradient hero, animated badges, feature grid,
